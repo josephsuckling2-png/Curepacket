@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  packetFeeCents Int      @default(75000)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users                     User[]
+  cases                     Case[]
+  monitoringSubscriptions   MonitoringSubscription[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  passwordHash   String?
+  role           String   @default("owner")
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Case {
+  id             String    @id @default(cuid())
+  organizationId String
+  clientName     String
+  clientEmail    String?
+  siteUrl        String
+  status         String    @default("intake")
+  deadlineAt     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization              Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  demandLetter              DemandLetter?
+  scans                     Scan[]
+  issues                    Issue[]
+  changelog                 ChangelogEntry[]
+  packetExports             PacketExport[]
+  payment                   Payment?
+  monitoringSubscriptions   MonitoringSubscription[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model DemandLetter {
+  id            String    @id @default(cuid())
+  caseId        String    @unique
+  sender        String?
+  dateReceived  DateTime?
+  allegedIssues String?
+  listedUrls    String?
+  notes         String?
+  rawText       String?
+  extractedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Scan {
+  id           String    @id @default(cuid())
+  caseId       String
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  status       String    @default("running")
+  pagesScanned Int       @default(0)
+  pagesJson    String?
+  error        String?
+  summaryJson  String?
+  createdAt    DateTime  @default(now())
+
+  case   Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  issues Issue[]
+
+  @@index([caseId])
+}
+
+model Issue {
+  id                String    @id @default(cuid())
+  caseId            String
+  scanId            String?
+  pageUrl           String
+  severity          String
+  wcagRule          String?
+  ruleId            String?
+  help              String
+  helpUrl           String?
+  description       String?
+  selector          String?
+  snippet           String?
+  status            String    @default("open")
+  beforeNotes       String?
+  afterNotes        String?
+  beforeScreenshot  String?
+  afterScreenshot   String?
+  fixedAt           DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  case Case  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  scan Scan? @relation(fields: [scanId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, status])
+  @@index([severity])
+}
+
+model ChangelogEntry {
+  id         String   @id @default(cuid())
+  caseId     String
+  message    String
+  authorName String?
+  createdAt  DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+model PacketExport {
+  id        String   @id @default(cuid())
+  caseId    String
+  createdAt DateTime @default(now())
+  filePath  String?
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  caseId          String   @unique
+  amountCents     Int
+  status          String   @default("unpaid")
+  kind            String   @default("packet")
+  stripeSessionId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model MonitoringSubscription {
+  id              String    @id @default(cuid())
+  organizationId  String
+  caseId          String?
+  siteUrl         String
+  status          String    @default("pending")
+  stripeSubId     String?
+  createdAt       DateTime  @default(now())
+  canceledAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  case         Case?        @relation(fields: [caseId], references: [id], onDelete: SetNull)
+}
