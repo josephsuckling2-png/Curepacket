@@ -1,6 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
+  // Render terminates TLS and forwards the public host. Trust it so Auth.js
+  // accepts the proxy host instead of rejecting the request.
   trustHost: true,
   pages: {
     signIn: "/login",
@@ -10,7 +12,7 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
-      const isProtected = ["/dashboard", "/cases", "/billing", "/settings"].some(
+      const isProtected = ["/dashboard", "/cases", "/billing", "/settings", "/admin"].some(
         (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
       );
       if (isProtected && !auth?.user) return false;

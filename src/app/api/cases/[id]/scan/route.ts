@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { addChangelog } from "@/lib/changelog";
 import { runSiteScan } from "@/lib/scan";
+import { replaceCaseScan } from "@/lib/save-scan";
+import { packetAccessForCase } from "@/lib/access";
 import { safeJsonParse } from "@/lib/utils";
 
 export const maxDuration = 120;
@@ -26,10 +28,10 @@ export async function POST(
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
   }
 
-  await prisma.case.update({ where: { id }, data: { status: "scanning" } });
-  const scan = await prisma.scan.create({
-    data: { caseId: id, status: "running" },
-  });
+  const access = await packetAccessForCase(id, session.user.organizationId);
+  if (!access.allowed) {
+    return NextResponse.json({ error: access.message, paywall: true }, { status: 402 });
+  }
 
   try {
     const extraUrls = safeJsonParse<string[]>(record.demandLetter?.listedUrls, []);
@@ -39,32 +41,7 @@ export async function POST(
       caseId: id,
     });
 
-    await prisma.issue.deleteMany({ where: { caseId: id, scanId: { not: null } } });
-    if (result.issues.length) {
-      await prisma.issue.createMany({
-        data: result.issues.map((issue) => ({
-          caseId: id,
-          scanId: scan.id,
-          ...issue,
-        })),
-      });
-    }
-
-    await prisma.scan.update({
-      where: { id: scan.id },
-      data: {
-        status: "completed",
-        completedAt: new Date(),
-        pagesScanned: result.pages.length,
-        pagesJson: JSON.stringify(result.pages),
-        summaryJson: JSON.stringify(result.summary),
-      },
-    });
-
-    await prisma.case.update({
-      where: { id },
-      data: { status: result.issues.length ? "remediating" : "packet_ready" },
-    });
+    await replaceCaseScan(id, result);
     await addChangelog(
       id,
       `Scan completed: ${result.pages.length} pages, ${result.issues.length} automated findings.`,
@@ -78,9 +55,8 @@ export async function POST(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scan failed.";
-    await prisma.scan.update({
-      where: { id: scan.id },
-      data: { status: "failed", completedAt: new Date(), error: message },
+    await prisma.scan.create({
+      data: { caseId: id, status: "failed", completedAt: new Date(), error: message },
     });
     await prisma.case.update({ where: { id }, data: { status: "intake" } });
     await addChangelog(id, `Scan failed: ${message}`, session.user.name);

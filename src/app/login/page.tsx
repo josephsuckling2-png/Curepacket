@@ -15,6 +15,7 @@ function LoginForm() {
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
+  const verified = params.get("verified") === "1";
   const [pending, setPending] = useState(false);
 
   return (
@@ -22,11 +23,14 @@ function LoginForm() {
       <CardHeader>
         <CardTitle>Sign in to the desk</CardTitle>
         <CardDescription>
-          Email and password, or continue as the seeded Harbor &amp; Co. agency. Magic link is
-          Auth.js-ready when email keys are present.
+          Email and password for your agency. If mail is configured, confirm the link we send before
+          the first sign-in. The demo agency is separate and has no connection to a new signup.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {verified ? (
+          <p className="text-sm text-forest">Email confirmed. Sign in with the password you chose.</p>
+        ) : null}
         <form
           className="space-y-4"
           action={async (formData) => {

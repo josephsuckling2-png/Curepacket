@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
-import path from "path";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { screenshotFilePath } from "@/lib/screenshots";
 
 export async function GET(
   _request: Request,
@@ -26,7 +26,7 @@ export async function GET(
   }
 
   try {
-    const full = path.join(process.cwd(), "data", "screenshots", caseId, file);
+    const full = screenshotFilePath(caseId, file);
     const bytes = await readFile(full);
     return new NextResponse(bytes, {
       headers: {

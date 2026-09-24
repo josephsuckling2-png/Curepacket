@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { createMonitoringCheckout, stripeConfigured } from "@/lib/stripe";
+import { appBaseUrl } from "@/lib/app-url";
+import { createMonitoringCheckout, monitoringFeeCents, stripeConfigured } from "@/lib/stripe";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   }
 
   const { caseId, siteUrl } = await request.json();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = appBaseUrl();
 
   const monitor = await prisma.monitoringSubscription.create({
     data: {
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
       caseId: caseId || null,
       siteUrl: siteUrl || "https://example.com",
       status: stripeConfigured() ? "pending" : "active",
+      amountCents: monitoringFeeCents(),
     },
   });
 
@@ -27,13 +29,14 @@ export async function POST(request: Request) {
       stub: true,
       id: monitor.id,
       message:
-        "Stripe is not configured. A local $49/mo monitoring subscription record was created. Production cron alerts are out of scope for this MVP.",
+        "Stripe is not configured. A practice $49/mo monitoring subscription was recorded and the monthly job will rescan this site. No card was charged.",
     });
   }
 
   const checkout = await createMonitoringCheckout({
     siteUrl: monitor.siteUrl,
     caseId: monitor.caseId ?? undefined,
+    monitoringId: monitor.id,
     successUrl: `${appUrl}/billing?checkout=success`,
     cancelUrl: `${appUrl}/billing?checkout=cancel`,
   });

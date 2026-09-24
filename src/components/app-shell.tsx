@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { signOut } from "@/auth";
+import { auth, signOut } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/disclaimer";
@@ -13,7 +14,7 @@ const nav = [
   { href: "/settings", label: "Settings" },
 ];
 
-export function AppShell({
+export async function AppShell({
   children,
   orgName,
   userName,
@@ -22,6 +23,11 @@ export function AppShell({
   orgName: string;
   userName: string;
 }) {
+  const session = await auth();
+  const items = isAdminEmail(session?.user?.email)
+    ? [...nav, { href: "/admin", label: "Admin" }]
+    : nav;
+
   return (
     <div className="min-h-screen bg-parchment">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[#e2d8c8] bg-parchment-card px-5 py-6 md:flex md:flex-col">
@@ -31,7 +37,7 @@ export function AppShell({
         <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-ink-soft">Agency</p>
         <p className="mt-1 font-medium text-ink">{orgName}</p>
         <nav className="mt-8 flex flex-1 flex-col gap-1">
-          {nav.map((item) => (
+          {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}

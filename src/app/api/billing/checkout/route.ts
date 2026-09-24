@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { addChangelog } from "@/lib/changelog";
+import { appBaseUrl } from "@/lib/app-url";
 import { createPacketCheckout, packetFeeCents, stripeConfigured } from "@/lib/stripe";
+import { paymentGrantsAccess } from "@/lib/access";
+import { notifyPacketFee } from "@/lib/notify";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -19,8 +22,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
   }
 
+  if (record.organization.planStatus === "active" || paymentGrantsAccess(record.payment?.status)) {
+    return NextResponse.json({
+      ok: true,
+      already: true,
+      message: "This case is already unlocked for scans and packet export.",
+    });
+  }
+
   const amount = packetFeeCents(record.organization.packetFeeCents);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = appBaseUrl();
 
   const payment = await prisma.payment.upsert({
     where: { caseId: record.id },
@@ -38,11 +49,18 @@ export async function POST(request: Request) {
       `Packet fee stub recorded at $${(amount / 100).toFixed(0)} (Stripe unset).`,
       session.user.name,
     );
+    await notifyPacketFee({
+      organizationId: record.organizationId,
+      caseId: record.id,
+      clientName: record.clientName,
+      amountCents: amount,
+      practice: true,
+    });
     return NextResponse.json({
       ok: true,
       stub: true,
       message:
-        "Stripe is not configured. A local stub payment was recorded so you can keep working the case. Add STRIPE_SECRET_KEY to enable Checkout.",
+        "Stripe is not configured. A practice payment was recorded and this case is unlocked for scans and packet export. No card was charged.",
     });
   }
 

@@ -1,7 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { fixturePageUrl } from "../src/lib/fixture-url";
 
 const prisma = new PrismaClient();
+const homeUrl = fixturePageUrl("index.html");
+const cartUrl = fixturePageUrl("cart.html");
+const contactUrl = fixturePageUrl("contact.html");
 
 async function main() {
   const passwordHash = await bcrypt.hash("demo1234", 10);
@@ -23,6 +27,7 @@ async function main() {
       passwordHash,
       role: "owner",
       organizationId: organization.id,
+      emailVerified: new Date(),
     },
     create: {
       email: "demo@curepacket.dev",
@@ -30,18 +35,19 @@ async function main() {
       passwordHash,
       role: "owner",
       organizationId: organization.id,
+      emailVerified: new Date(),
     },
   });
 
   const northwind = await prisma.case.upsert({
     where: { id: "case_northwind_demo" },
-    update: {},
+    update: { siteUrl: homeUrl },
     create: {
       id: "case_northwind_demo",
       organizationId: organization.id,
       clientName: "Northwind Provisions",
       clientEmail: "ops@northwind-provisions.example",
-      siteUrl: "http://localhost:3000/fixtures/demo-site/index.html",
+      siteUrl: homeUrl,
       status: "remediating",
       deadlineAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 41),
       notes: "E-commerce client received a serial demand letter naming homepage, cart, and contact.",
@@ -50,7 +56,7 @@ async function main() {
 
   await prisma.demandLetter.upsert({
     where: { caseId: northwind.id },
-    update: {},
+    update: { listedUrls: JSON.stringify([homeUrl, cartUrl, contactUrl]) },
     create: {
       caseId: northwind.id,
       sender: "Reed & Feldman LLP",
@@ -63,18 +69,14 @@ async function main() {
         "Alleged WCAG 1.4.3",
         "Alleged WCAG 1.3.1",
       ]),
-      listedUrls: JSON.stringify([
-        "http://localhost:3000/fixtures/demo-site/index.html",
-        "http://localhost:3000/fixtures/demo-site/cart.html",
-        "http://localhost:3000/fixtures/demo-site/contact.html",
-      ]),
+      listedUrls: JSON.stringify([homeUrl, cartUrl, contactUrl]),
       notes: "Letter cites homepage hero, checkout CTA, and contact form. Client wants a counsel packet in 45 days.",
       rawText: `REED & FELDMAN LLP
 September 7, 2026
 
 Re: Accessibility barriers at https://northwind.example
 
-Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, http://localhost:3000/fixtures/demo-site/cart.html, and http://localhost:3000/fixtures/demo-site/contact.html contain images missing alternative text, insufficient color contrast, and form controls without labels, including WCAG 1.1.1, 1.4.3, and 1.3.1.`,
+Our client alleges that ${homeUrl}, ${cartUrl}, and ${contactUrl} contain images missing alternative text, insufficient color contrast, and form controls without labels, including WCAG 1.1.1, 1.4.3, and 1.3.1.`,
       extractedAt: new Date(),
     },
   });
@@ -89,11 +91,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
       completedAt: new Date(Date.now() - 1000 * 60 * 60 * 5.8),
       status: "completed",
       pagesScanned: 3,
-      pagesJson: JSON.stringify([
-        "http://localhost:3000/fixtures/demo-site/index.html",
-        "http://localhost:3000/fixtures/demo-site/cart.html",
-        "http://localhost:3000/fixtures/demo-site/contact.html",
-      ]),
+      pagesJson: JSON.stringify([homeUrl, cartUrl, contactUrl]),
       summaryJson: JSON.stringify({
         pagesScanned: 3,
         issueCount: 8,
@@ -109,7 +107,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/index.html",
+          pageUrl: homeUrl,
           severity: "critical",
           wcagRule: "1.1.1",
           ruleId: "image-alt",
@@ -124,7 +122,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/index.html",
+          pageUrl: homeUrl,
           severity: "serious",
           wcagRule: "1.4.3",
           ruleId: "color-contrast",
@@ -138,7 +136,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/cart.html",
+          pageUrl: cartUrl,
           severity: "critical",
           wcagRule: "4.1.2",
           ruleId: "button-name",
@@ -151,7 +149,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/contact.html",
+          pageUrl: contactUrl,
           severity: "serious",
           wcagRule: "1.3.1",
           ruleId: "label",
@@ -167,7 +165,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/index.html",
+          pageUrl: homeUrl,
           severity: "serious",
           wcagRule: "2.4.4",
           ruleId: "link-name",
@@ -180,7 +178,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/cart.html",
+          pageUrl: cartUrl,
           severity: "moderate",
           wcagRule: "1.3.1",
           ruleId: "heading-order",
@@ -193,7 +191,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/contact.html",
+          pageUrl: contactUrl,
           severity: "moderate",
           wcagRule: "3.3.2",
           ruleId: "select-name",
@@ -206,7 +204,7 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
         {
           caseId: northwind.id,
           scanId: scan.id,
-          pageUrl: "http://localhost:3000/fixtures/demo-site/index.html",
+          pageUrl: homeUrl,
           severity: "minor",
           wcagRule: "2.4.1",
           ruleId: "bypass",
@@ -249,11 +247,11 @@ Our client alleges that http://localhost:3000/fixtures/demo-site/index.html, htt
 
   await prisma.payment.upsert({
     where: { caseId: northwind.id },
-    update: {},
+    update: { status: "stub", amountCents: 75000 },
     create: {
       caseId: northwind.id,
       amountCents: 75000,
-      status: "unpaid",
+      status: "stub",
       kind: "packet",
     },
   });

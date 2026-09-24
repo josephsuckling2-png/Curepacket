@@ -5,7 +5,8 @@ import { AppShell } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/utils";
 import { stripeConfigured } from "@/lib/stripe";
-import { PacketCheckoutButton, MonitorCheckoutButton } from "./billing-actions";
+import { AgencyPlanButton, PacketCheckoutButton, MonitorCheckoutButton } from "./billing-actions";
+import { agencyPlanPriceId } from "@/lib/stripe";
 
 export default async function BillingPage({
   searchParams,
@@ -31,8 +32,9 @@ export default async function BillingPage({
       <p className="text-xs uppercase tracking-[0.18em] text-copper">Billing</p>
       <h1 className="mt-1 font-serif text-4xl">Packet fees and monitoring</h1>
       <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-        Stripe Checkout / Payment Link stubs for a per-case packet fee and an optional $49/mo
-        monitoring plan. When Stripe keys are unset, the desk records a local stub instead of failing.
+        A scan or packet export needs the per-case fee unless the agency plan is active. Monitoring
+        is $49 a month per site and is rescanned on the monthly job. When Stripe keys are unset, the
+        buttons record a practice payment and do not charge a card.
       </p>
       {params.checkout === "success" ? (
         <p className="mt-4 rounded-md bg-forest-soft px-3 py-2 text-sm text-forest">
@@ -54,8 +56,17 @@ export default async function BillingPage({
             <p className="text-xs uppercase tracking-[0.16em] text-ink-soft">Monitoring</p>
             <p className="mt-2 font-serif text-4xl">$49/mo</p>
             <p className="mt-2 text-sm text-ink-muted">
-              {monitors.length} plan record{monitors.length === 1 ? "" : "s"} on this agency.
+              {monitors.filter((item) => item.status === "active").length} active site subscription
+              {monitors.filter((item) => item.status === "active").length === 1 ? "" : "s"}. Agency
+              plan: {org?.planStatus ?? "none"}.
             </p>
+            <div className="mt-4">
+              <AgencyPlanButton
+                active={org?.planStatus === "active"}
+                stripeOn={configured}
+                priceConfigured={Boolean(agencyPlanPriceId())}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -11,6 +11,7 @@ import { registerAction } from "@/app/actions";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div className="flex min-h-screen flex-col bg-parchment paper-grid">
@@ -34,6 +35,10 @@ export default function RegisterPage() {
               action={async (formData) => {
                 setError(null);
                 const result = await registerAction(formData);
+                if (result?.needsVerification) {
+                  setNotice(result.message);
+                  return;
+                }
                 if (result?.error) setError(result.error);
               }}
             >
@@ -53,6 +58,7 @@ export default function RegisterPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" name="password" type="password" minLength={8} required />
               </div>
+              {notice ? <p className="text-sm text-forest">{notice}</p> : null}
               {error ? <p className="text-sm text-red-700">{error}</p> : null}
               <Button type="submit" className="w-full">
                 Create workspace

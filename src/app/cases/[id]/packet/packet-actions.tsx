@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PacketCheckoutButton } from "@/app/billing/billing-actions";
 
-export function PacketActions({ caseId }: { caseId: string }) {
+export function PacketActions({
+  caseId,
+  locked,
+  lockMessage,
+}: {
+  caseId: string;
+  locked: boolean;
+  lockMessage: string;
+}) {
   const [message, setMessage] = useState<string | null>(null);
 
   async function markReady() {
@@ -15,6 +24,15 @@ export function PacketActions({ caseId }: { caseId: string }) {
     const data = await response.json();
     setMessage(data.error ?? "Case marked packet ready.");
     if (response.ok) window.location.reload();
+  }
+
+  if (locked) {
+    return (
+      <div className="space-y-3 rounded-lg border border-[#e2d8c8] bg-white p-4">
+        <p className="text-sm text-ink">{lockMessage}</p>
+        <PacketCheckoutButton caseId={caseId} />
+      </div>
+    );
   }
 
   return (

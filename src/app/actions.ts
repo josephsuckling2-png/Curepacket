@@ -10,6 +10,8 @@ import { addChangelog } from "@/lib/changelog";
 import { extractLetter } from "@/lib/extract-letter";
 import { CASE_STATUSES, ISSUE_STATUSES } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
+import { mailConfigured, sendVerificationEmail, sendWelcomeEmail } from "@/lib/mail";
+import { createVerificationToken } from "@/lib/verification";
 
 async function orgId() {
   const session = await auth();
@@ -47,9 +49,11 @@ export async function registerAction(formData: FormData) {
     data: {
       name: parsed.data.organization,
       slug: `${slugify(parsed.data.organization)}-${Math.random().toString(36).slice(2, 6)}`,
+      planStatus: "none",
     },
   });
 
+  const verification = mailConfigured() ? createVerificationToken() : null;
   await prisma.user.create({
     data: {
       name: parsed.data.name,
@@ -57,9 +61,27 @@ export async function registerAction(formData: FormData) {
       passwordHash: await bcrypt.hash(parsed.data.password, 10),
       role: "owner",
       organizationId: organization.id,
+      emailVerified: verification ? null : new Date(),
+      verifyTokenHash: verification?.hash,
+      verifyTokenExpires: verification?.expires,
     },
   });
 
+  if (verification) {
+    const sent = await sendVerificationEmail(email, verification.token);
+    if (sent.sent) {
+      return {
+        needsVerification: true as const,
+        message: "Check your email for a confirmation link. You can sign in after you confirm.",
+      };
+    }
+    await prisma.user.update({
+      where: { email },
+      data: { emailVerified: new Date(), verifyTokenHash: null, verifyTokenExpires: null },
+    });
+  }
+
+  await sendWelcomeEmail(email, parsed.data.name);
   await signIn("credentials", {
     email,
     password: parsed.data.password,
