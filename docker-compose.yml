@@ -1,0 +1,40 @@
+# Local Postgres for development. The app itself runs with `npm run dev` on the host.
+# To exercise the production image: docker compose --profile app up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: curepacket
+      POSTGRES_PASSWORD: curepacket
+      POSTGRES_DB: curepacket
+    ports:
+      - "5432:5432"
+    volumes:
+      - curepacket-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curepacket -d curepacket"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://curepacket:curepacket@db:5432/curepacket
+      AUTH_SECRET: local-docker-auth-secret-change-me
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      SEED_DEMO: "true"
+      PORT: "3000"
+      PLAYWRIGHT_NO_SANDBOX: "1"
+    shm_size: "1gb"
+
+volumes:
+  curepacket-pg:

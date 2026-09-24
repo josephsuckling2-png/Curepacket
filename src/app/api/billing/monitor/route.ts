@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { appBaseUrl } from "@/lib/app-url";
 import { createMonitoringCheckout, stripeConfigured } from "@/lib/stripe";
 
 export async function POST(request: Request) {
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   }
 
   const { caseId, siteUrl } = await request.json();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = appBaseUrl();
 
   const monitor = await prisma.monitoringSubscription.create({
     data: {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   const checkout = await createMonitoringCheckout({
     siteUrl: monitor.siteUrl,
     caseId: monitor.caseId ?? undefined,
+    monitoringId: monitor.id,
     successUrl: `${appUrl}/billing?checkout=success`,
     cancelUrl: `${appUrl}/billing?checkout=cancel`,
   });

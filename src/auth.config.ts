@@ -1,6 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
+  // Render terminates TLS and forwards the public host. Trust it so Auth.js
+  // accepts the proxy host instead of rejecting the request.
   trustHost: true,
   pages: {
     signIn: "/login",

@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { rewriteFixtureUrl } from "@/lib/fixture-url";
+import { screenshotDirectory } from "@/lib/screenshots";
 import { normalizeUrl, originOf } from "@/lib/utils";
 
 export type ScanIssueInput = {
@@ -72,7 +74,11 @@ export async function runSiteScan(options: {
 
   let browser;
   try {
-    browser = await chromium.launch({ headless: true });
+    const args = ["--disable-dev-shm-usage"];
+    if (process.env.PLAYWRIGHT_NO_SANDBOX === "1" || process.env.PLAYWRIGHT_NO_SANDBOX === "true") {
+      args.push("--no-sandbox", "--disable-setuid-sandbox");
+    }
+    browser = await chromium.launch({ headless: true, args });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown browser launch error";
     throw new Error(
@@ -90,7 +96,7 @@ export async function runSiteScan(options: {
   const seen = new Set<string>();
   const pages: string[] = [];
   const issues: ScanIssueInput[] = [];
-  const screenshotDir = path.join(process.cwd(), "data", "screenshots", options.caseId);
+  const screenshotDir = screenshotDirectory(options.caseId);
   await mkdir(screenshotDir, { recursive: true });
 
   const enqueue = (raw: string, base?: string) => {
@@ -102,9 +108,9 @@ export async function runSiteScan(options: {
     queue.push(normalized);
   };
 
-  enqueue(options.homepage);
+  enqueue(rewriteFixtureUrl(options.homepage));
   for (const extra of options.extraUrls ?? []) {
-    enqueue(extra);
+    enqueue(rewriteFixtureUrl(extra));
   }
 
   try {
