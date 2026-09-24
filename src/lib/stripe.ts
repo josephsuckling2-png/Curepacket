@@ -184,6 +184,7 @@ export async function createPacketCheckout(options: {
     success_url: options.successUrl,
     cancel_url: options.cancelUrl,
     metadata: { caseId: options.caseId, kind: "packet" },
+    payment_intent_data: { metadata: { caseId: options.caseId, kind: "packet" } },
     line_items: [lineItem],
   });
 }
@@ -202,7 +203,7 @@ export async function createMonitoringCheckout(options: {
     kind: "monitoring",
     amountCents: monitoringFeeCents(),
     name: "CurePacket site monitoring",
-    description: `Monthly monitoring plan for ${options.siteUrl}. Alerts and rescans are modeled in-app; production cron is out of scope for this MVP.`,
+    description: `Monthly monitoring for ${options.siteUrl}. The scheduled job rescans the site and emails the agency when new critical or serious issues appear.`,
   });
   if (!lineItem) return null;
 
@@ -216,6 +217,38 @@ export async function createMonitoringCheckout(options: {
       siteUrl: options.siteUrl,
       monitoringId: options.monitoringId,
     },
+    subscription_data: {
+      metadata: {
+        kind: "monitoring",
+        monitoringId: options.monitoringId,
+        caseId: options.caseId ?? "",
+      },
+    },
     line_items: [lineItem],
+  });
+}
+
+export function agencyPlanPriceId() {
+  return process.env.STRIPE_AGENCY_PLAN_PRICE_ID?.trim() || "";
+}
+
+export async function createAgencyPlanCheckout(options: {
+  organizationId: string;
+  successUrl: string;
+  cancelUrl: string;
+}) {
+  const stripe = getStripe();
+  const priceId = agencyPlanPriceId();
+  if (!stripe || !priceId) return null;
+
+  return stripe.checkout.sessions.create({
+    mode: "subscription",
+    success_url: options.successUrl,
+    cancel_url: options.cancelUrl,
+    metadata: { kind: "plan", organizationId: options.organizationId },
+    subscription_data: {
+      metadata: { kind: "plan", organizationId: options.organizationId },
+    },
+    line_items: [{ quantity: 1, price: priceId }],
   });
 }

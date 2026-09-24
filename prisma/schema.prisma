@@ -9,24 +9,32 @@ datasource db {
 }
 
 model Organization {
-  id             String   @id @default(cuid())
-  name           String
-  slug           String   @unique
-  packetFeeCents Int      @default(75000)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  packetFeeCents   Int      @default(75000)
+  /// none | active | past_due | canceled. Active waives the per-case fee.
+  planStatus       String   @default("none")
+  planStripeSubId  String?
+  planAmountCents  Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   users                     User[]
   cases                     Case[]
   monitoringSubscriptions   MonitoringSubscription[]
+  notifications             Notification[]
 }
 
 model User {
   id             String   @id @default(cuid())
-  email          String   @unique
-  name           String
-  passwordHash   String?
-  role           String   @default("owner")
+  email               String    @unique
+  name                String
+  passwordHash        String?
+  emailVerified       DateTime?
+  verifyTokenHash     String?
+  verifyTokenExpires  DateTime?
+  role                String    @default("owner")
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -163,9 +171,25 @@ model MonitoringSubscription {
   siteUrl         String
   status          String    @default("pending")
   stripeSubId     String?
+  amountCents     Int       @default(4900)
+  lastScannedAt   DateTime?
   createdAt       DateTime  @default(now())
   canceledAt      DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   case         Case?        @relation(fields: [caseId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  kind           String
+  title          String
+  body           String
+  createdAt      DateTime  @default(now())
+  readAt         DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
 }

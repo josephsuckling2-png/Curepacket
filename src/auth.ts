@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
+import { mailConfigured } from "@/lib/mail";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -27,6 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           include: { organization: true },
         });
         if (!user?.passwordHash) return null;
+        if (!user.emailVerified && mailConfigured()) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;

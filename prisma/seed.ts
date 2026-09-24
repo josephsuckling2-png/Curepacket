@@ -27,6 +27,7 @@ async function main() {
       passwordHash,
       role: "owner",
       organizationId: organization.id,
+      emailVerified: new Date(),
     },
     create: {
       email: "demo@curepacket.dev",
@@ -34,6 +35,7 @@ async function main() {
       passwordHash,
       role: "owner",
       organizationId: organization.id,
+      emailVerified: new Date(),
     },
   });
 
@@ -245,11 +247,11 @@ Our client alleges that ${homeUrl}, ${cartUrl}, and ${contactUrl} contain images
 
   await prisma.payment.upsert({
     where: { caseId: northwind.id },
-    update: {},
+    update: { status: "stub", amountCents: 75000 },
     create: {
       caseId: northwind.id,
       amountCents: 75000,
-      status: "unpaid",
+      status: "stub",
       kind: "packet",
     },
   });

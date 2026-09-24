@@ -71,6 +71,7 @@ A local fixture site with intentional accessibility defects lives at `/fixtures/
 | `npm run db:reset` | Drop the database, migrate, and reseed |
 | `npm run start:prod` | Migrate, seed only if `SEED_DEMO=true`, then `next start` |
 | `npm run stripe:setup` | Create Stripe products/prices when `STRIPE_SECRET_KEY` is set |
+| `npm run monitor:run` | Rescan active monitoring subscriptions (also the Render cron command) |
 | `npm run playwright:install` | Install Chromium for scans on the host |
 
 ## Environment variables
@@ -83,7 +84,11 @@ See `.env.example`.
 | `AUTH_SECRET` | Yes | Auth.js session secret. Render generates it. |
 | `AUTH_URL` / `APP_URL` | Local | `http://localhost:3000`. On Render, left blank and copied from `RENDER_EXTERNAL_URL` at startup. Set both when you add a custom domain. |
 | `AUTH_TRUST_HOST` | Render | `true` so Auth.js accepts Render’s proxy. The app also sets `trustHost` in code. |
-| `SEED_DEMO` | Render | `true` creates the demo agency on production startup. The Blueprint defaults this to `true`. Set `false` after you create a real account. `npm run dev` always seeds. |
+| `SEED_DEMO` | Render | `true` creates the demo agency on production startup. The Blueprint defaults this to `true`. Set `false` after you create a real account. `npm run dev` always seeds. New signups never receive demo cases. |
+| `RESEND_API_KEY` or `AUTH_RESEND_KEY` | No | Turns on signup confirmation and transactional email. Without it, signup skips email and notices stay in the desk. |
+| `EMAIL_FROM` | No | From-address for Resend. |
+| `ADMIN_EMAIL` | No | Comma-separated sign-in emails allowed to open `/admin`. |
+| `STRIPE_AGENCY_PLAN_PRICE_ID` | No | Optional agency-wide Stripe Price. An active subscription waives the per-case scan and export fee. |
 | `ENABLE_LLM_EXTRACT` / `OPENAI_API_KEY` | No | Heuristic extractor always works; LLM is opt-in |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | Billing records a local stub when the secret key is unset. Webhook path: `/api/stripe/webhook`. Price IDs are optional. |
 | `DEFAULT_PACKET_FEE_CENTS` | No | Defaults to `75000` ($750) |

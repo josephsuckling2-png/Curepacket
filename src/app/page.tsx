@@ -63,12 +63,12 @@ export default function HomePage() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild variant="copper" size="lg">
-                <Link href="/login?demo=1">
-                  Open the demo desk <ArrowRight className="h-4 w-4" />
+                <Link href="/register">
+                  Create an agency account <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/register">Create an agency account</Link>
+                <Link href="/login?demo=1">Open the demo desk</Link>
               </Button>
             </div>
             <p className="mt-5 max-w-lg text-sm text-ink-soft">
@@ -185,13 +185,13 @@ export default function HomePage() {
               <p className="text-sm text-ink-soft">Optional monitoring</p>
               <p className="mt-2 font-serif text-5xl text-ink">$49<span className="text-2xl">/mo</span></p>
               <p className="mt-2 text-sm text-ink-muted">
-                Subscription record and Stripe Checkout stub. Production cron is a later milestone.
+                Per site. An active subscription is rescanned monthly. New critical or serious findings are saved and, when email is configured, sent to the agency.
               </p>
               <ul className="mt-6 space-y-2 text-sm text-ink-muted">
                 {[
                   "Site attached to a closed or active case",
                   "Plan status visible on the billing desk",
-                  "Intended for monthly rescan + alert later",
+                  "Monthly rescan of that site",
                 ].map((item) => (
                   <li key={item} className="flex gap-2">
                     <Check className="mt-0.5 h-4 w-4 text-forest" />
@@ -231,6 +231,9 @@ export default function HomePage() {
             </Link>
             <Link href="/register" className="hover:text-ink">
               Create account
+            </Link>
+            <Link href="/guides" className="hover:text-ink">
+              Guides
             </Link>
             <Link href="/dashboard" className="hover:text-ink">
               Desk

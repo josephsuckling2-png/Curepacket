@@ -33,6 +33,11 @@ export default async function DashboardPage() {
   ]);
 
   const org = await prisma.organization.findUnique({ where: { id: orgId } });
+  const notifications = await prisma.notification.findMany({
+    where: { organizationId: orgId },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+  });
   const dueSoon = cases.filter((item) => {
     const days = daysUntil(item.deadlineAt);
     return days !== null && days <= 21 && item.status !== "closed";
@@ -96,6 +101,26 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         <div className="space-y-6">
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="font-serif text-2xl">Notices</h2>
+              <div className="mt-4 space-y-3">
+                {notifications.length === 0 ? (
+                  <p className="text-sm text-ink-muted">
+                    Payment notes, packet-ready notes, and monitoring alerts show up here. Email is sent
+                    only when a mail key is set.
+                  </p>
+                ) : (
+                  notifications.map((item) => (
+                    <div key={item.id} className="text-sm">
+                      <p className="font-medium text-ink">{item.title}</p>
+                      <p className="whitespace-pre-wrap text-ink-muted">{item.body}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-6">
               <h2 className="font-serif text-2xl">Cure windows</h2>

@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { addChangelog } from "@/lib/changelog";
 import { getStripe, stripeConfigured } from "@/lib/stripe";
+import { notifyPacketFee } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -63,13 +64,46 @@ async function handleStripeEvent(event: Stripe.Event) {
     case "checkout.session.expired":
       await onCheckoutExpired(event.data.object);
       return;
+    case "checkout.session.async_payment_failed":
+      await onCheckoutFailed(event.data.object);
+      return;
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
       await onSubscriptionChanged(event.data.object);
       return;
+    case "invoice.payment_failed":
+      await onInvoicePaymentFailed(event.data.object);
+      return;
+    case "payment_intent.payment_failed": {
+      const intent = event.data.object;
+      const caseId = intent.metadata?.caseId;
+      if (intent.metadata?.kind === "packet" && caseId) {
+        await prisma.payment.updateMany({
+          where: { caseId, status: "pending" },
+          data: { status: "unpaid" },
+        });
+        await addChangelog(caseId, "Stripe reported the packet payment failed.", "Stripe");
+      }
+      return;
+    }
     default:
       return;
   }
+}
+
+function subscriptionIdOf(value: unknown) {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value && "id" in value && typeof value.id === "string") {
+    return value.id;
+  }
+  return null;
+}
+
+function planStatusFor(subscriptionStatus: string) {
+  if (subscriptionStatus === "active" || subscriptionStatus === "trialing") return "active";
+  if (subscriptionStatus === "past_due" || subscriptionStatus === "unpaid") return "past_due";
+  return "canceled";
 }
 
 async function onCheckoutCompleted(session: Stripe.Checkout.Session) {
@@ -96,6 +130,28 @@ async function onCheckoutCompleted(session: Stripe.Checkout.Session) {
       },
     });
     await addChangelog(caseId, "Stripe marked the packet fee paid.", "Stripe");
+    await notifyPacketFee({
+      organizationId: record.organizationId,
+      caseId,
+      clientName: record.clientName,
+      amountCents: amount ?? 0,
+      practice: false,
+    });
+    return;
+  }
+
+  if (kind === "plan") {
+    const organizationId = session.metadata?.organizationId;
+    if (!organizationId) return;
+    const subscriptionId = subscriptionIdOf(session.subscription);
+    await prisma.organization.updateMany({
+      where: { id: organizationId },
+      data: {
+        planStatus: "active",
+        planStripeSubId: subscriptionId,
+        ...(session.amount_total ? { planAmountCents: session.amount_total } : {}),
+      },
+    });
     return;
   }
 
@@ -127,17 +183,75 @@ async function onCheckoutExpired(session: Stripe.Checkout.Session) {
   });
 }
 
+async function onCheckoutFailed(session: Stripe.Checkout.Session) {
+  if (session.metadata?.kind === "packet" && session.metadata.caseId) {
+    await prisma.payment.updateMany({
+      where: { caseId: session.metadata.caseId },
+      data: { status: "unpaid", stripeSessionId: session.id },
+    });
+    await addChangelog(session.metadata.caseId, "Stripe reported the packet payment failed.", "Stripe");
+  }
+  if (session.metadata?.kind === "plan" && session.metadata.organizationId) {
+    await prisma.organization.updateMany({
+      where: { id: session.metadata.organizationId },
+      data: { planStatus: "canceled" },
+    });
+  }
+  if (session.metadata?.kind === "monitoring" && session.metadata.monitoringId) {
+    await prisma.monitoringSubscription.updateMany({
+      where: { id: session.metadata.monitoringId },
+      data: { status: "canceled", canceledAt: new Date() },
+    });
+  }
+}
+
 async function onSubscriptionChanged(subscription: Stripe.Subscription) {
   const active = subscription.status === "active" || subscription.status === "trialing";
+  const status = active ? "active" : subscription.status === "past_due" || subscription.status === "unpaid" ? "past_due" : "canceled";
+  const monitoringId = subscription.metadata?.monitoringId;
   await prisma.monitoringSubscription.updateMany({
-    where: { stripeSubId: subscription.id },
+    where: monitoringId ? { OR: [{ stripeSubId: subscription.id }, { id: monitoringId }] } : { stripeSubId: subscription.id },
     data: {
-      status: active ? "active" : "canceled",
+      status,
+      stripeSubId: subscription.id,
       canceledAt: subscription.canceled_at
         ? new Date(subscription.canceled_at * 1000)
         : active
           ? null
           : new Date(),
     },
+  });
+
+  if (subscription.metadata?.kind === "plan" || subscription.metadata?.organizationId) {
+    const organizationId = subscription.metadata.organizationId;
+    await prisma.organization.updateMany({
+      where: organizationId
+        ? { OR: [{ id: organizationId }, { planStripeSubId: subscription.id }] }
+        : { planStripeSubId: subscription.id },
+      data: {
+        planStatus: planStatusFor(subscription.status),
+        planStripeSubId: subscription.id,
+      },
+    });
+  } else {
+    await prisma.organization.updateMany({
+      where: { planStripeSubId: subscription.id },
+      data: { planStatus: planStatusFor(subscription.status) },
+    });
+  }
+}
+
+async function onInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const subscriptionId = subscriptionIdOf(
+    (invoice as Stripe.Invoice & { subscription?: string | { id: string } | null }).subscription,
+  );
+  if (!subscriptionId) return;
+  await prisma.monitoringSubscription.updateMany({
+    where: { stripeSubId: subscriptionId },
+    data: { status: "past_due" },
+  });
+  await prisma.organization.updateMany({
+    where: { planStripeSubId: subscriptionId },
+    data: { planStatus: "past_due" },
   });
 }

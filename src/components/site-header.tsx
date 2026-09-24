@@ -22,6 +22,9 @@ export async function SiteHeader() {
           <Link href="/#pricing" className="hover:text-ink">
             Pricing
           </Link>
+          <Link href="/guides" className="hover:text-ink">
+            Guides
+          </Link>
           <Link href="/#positioning" className="hover:text-ink">
             Positioning
           </Link>
@@ -37,7 +40,7 @@ export async function SiteHeader() {
                 <Link href="/login">Sign in</Link>
               </Button>
               <Button asChild size="sm" variant="copper">
-                <Link href="/login?demo=1">Start a case</Link>
+                <Link href="/register">Create account</Link>
               </Button>
             </>
           )}

@@ -8,15 +8,16 @@ Prices below were copied from [Render’s pricing page](https://render.com/prici
 
 ## What you will pay
 
-The Blueprint file (`render.yaml`) picks two paid pieces so scans and your data keep working:
+The Blueprint file (`render.yaml`) picks the website, the database, and a monthly scan job:
 
 | Piece | Plan in the Blueprint | Price on 24 Sep 2026 | What you get |
 | --- | --- | --- | --- |
 | Website | Standard | **$25 per month** | 2 GB memory, 1 CPU |
 | Database | Basic-256mb | **$6 per month** | 256 MB memory, 100 connections, **1 GB storage included** |
+| Monthly scan job | Standard cron | **$0.00058 per minute** while it runs | 2 GB memory, 1 CPU. It runs on the 1st of each month |
 | Render account (Hobby) | Hobby | **$0 per month** | Enough for one owner |
 
-**About $31 per month** for those two pieces, before extras.
+**About $31 per month** for the website and database, before extras. The monthly scan job is extra, and only for the minutes it is actually running. On 24 Sep 2026 the Standard cron rate was **$0.00058 per minute**. A short monthly run is well under a dollar. The job uses Standard (2 GB) because the scan browser does not fit in the 512 MB Starter cron (**$0.00016 per minute**).
 
 Extras the pricing page lists for a Hobby workspace:
 
@@ -82,6 +83,33 @@ New deploys will stop resetting the demo password. The demo user can still sign 
 
 To turn the sample data back on for a test, set `SEED_DEMO` to `true` and redeploy. That resets the demo password to `demo1234`.
 
+## What visitors can do without you
+
+Anyone can open **Create account**, enter an agency name, their name, email, and a password, and get an empty workspace. That account does not include the demo cases.
+
+Scans and packet downloads on a case stay locked until that case’s packet fee is recorded. The default fee is **$750**. If the agency plan is active, every case is unlocked and the per-case fee is not required. Monitoring is separate: **$49 per month per site**. The Blueprint’s monthly job rescans sites with an active monitoring subscription. When it finds new critical or serious issues, it saves them and shows a notice on the desk. If email is set up, it also sends that summary.
+
+With no Stripe keys, the pay button records a practice payment and unlocks that case. No card is charged. With no mail key, signup does not wait for an email confirmation.
+
+The sample Northwind case on the demo login is marked as a practice payment so you can still open its board and packet. A case you create yourself is locked until you use the pay button.
+
+## Email and the admin page (optional, add later)
+
+In Render, open the **curepacket** website → **Environment** → **Add Environment Variable**.
+
+| Name | What to put | What happens if you skip it |
+| --- | --- | --- |
+| `RESEND_API_KEY` | The API key from [resend.com](https://resend.com) | No email is sent. Signup skips confirmation. Notices still show on the desk. The same key can be named `AUTH_RESEND_KEY`. |
+| `EMAIL_FROM` | A from-address Resend will send as, such as `CurePacket <notifications@yourstudio.com>` | The app uses `CurePacket <onboarding@resend.dev>`. Resend only delivers that test sender to the email on your Resend account until you verify a domain. |
+| `ADMIN_EMAIL` | The email you use to sign in. More than one address is allowed, separated by commas. | The Admin page stays closed. |
+| `STRIPE_AGENCY_PLAN_PRICE_ID` | A Stripe Price id for an agency-wide subscription, if you sell one | There is no agency-plan Checkout. Each case uses the packet fee. In practice mode (no Stripe secret), the billing page can still turn a practice agency plan on and off. |
+
+Add `RESEND_API_KEY` and `EMAIL_FROM` on the **curepacket-monitor** job as well if you want the monthly scan to email you. The website and the job do not share variables automatically.
+
+Mail the app can send: a confirmation link for a new signup, a welcome note, a payment receipt link, a “packet ready” note, and a monitoring alert. Each one includes the product disclaimer.
+
+Open **Admin** from the desk after `ADMIN_EMAIL` matches your sign-in email. It lists signups, paid cases (including practice payments), active monitoring subscriptions, and monthly recurring revenue from those rows. Packet fees are one-time, so they are not part of that monthly number.
+
 ## Stripe, when you want to charge
 
 With no Stripe keys, the Billing page records a practice payment and does not contact Stripe. That is normal.
@@ -95,6 +123,7 @@ When you are ready, make a Stripe account and stay in **Test mode** until a paym
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe → Developers → API keys → Publishable key (`pk_test_…` or `pk_live_…`) | Add it with the secret key. Hosted Checkout uses the secret key on the server; keep the publishable key next to it |
 | `STRIPE_PACKET_PRICE_ID` | Leave blank unless you already made a price | No |
 | `STRIPE_MONITORING_PRICE_ID` | Leave blank unless you already made a price | No |
+| `STRIPE_AGENCY_PLAN_PRICE_ID` | Optional Stripe Price for an agency-wide plan. While that subscription is active, scans and exports do not need the per-case fee | No |
 
 You do not create products by hand. The first Checkout creates them if those price variables are empty:
 
@@ -112,9 +141,12 @@ In Stripe: **Developers → Webhooks → Add endpoint**.
 - Events:
   - `checkout.session.completed`
   - `checkout.session.async_payment_succeeded`
+  - `checkout.session.async_payment_failed`
   - `checkout.session.expired`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`
+  - `invoice.payment_failed`
+  - `payment_intent.payment_failed`
 
 Put the signing secret in `STRIPE_WEBHOOK_SECRET` and save the environment so Render redeploys.
 

@@ -8,10 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { addManualChangelogAction } from "@/app/actions";
 import { PacketActions } from "./packet-actions";
+import { packetAccessForCase } from "@/lib/access";
 
 export default async function PacketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, record } = await requireCase(id);
+  const access = await packetAccessForCase(record.id, session.user.organizationId);
   const fixed = record.issues.filter((issue) => issue.status === "fixed").length;
 
   return (
@@ -26,7 +28,7 @@ export default async function PacketPage({ params }: { params: Promise<{ id: str
         <CaseNav caseId={record.id} current="/packet" />
       </div>
       <div className="mt-8 space-y-6">
-        <PacketActions caseId={record.id} />
+        <PacketActions caseId={record.id} locked={!access.allowed} lockMessage={access.message} />
         <Card>
           <CardContent className="p-6">
             <h2 className="font-serif text-2xl">Disclaimer included in every export</h2>

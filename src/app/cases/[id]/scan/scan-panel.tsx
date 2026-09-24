@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PacketCheckoutButton } from "@/app/billing/billing-actions";
 
 export function ScanPanel({
   caseId,
   latest,
+  locked,
+  lockMessage,
 }: {
   caseId: string;
+  locked: boolean;
+  lockMessage: string;
   latest: {
     status: string;
     pagesScanned: number;
@@ -61,9 +66,16 @@ export function ScanPanel({
         ) : (
           <p className="text-sm text-ink-muted">No scan has been run on this case yet.</p>
         )}
-        <Button onClick={runScan} disabled={busy} variant="copper">
-          {busy ? "Scanning… this can take a minute" : "Run scan"}
-        </Button>
+        {locked ? (
+          <div className="space-y-3 rounded-lg border border-[#e2d8c8] bg-parchment-deep p-4">
+            <p className="text-sm text-ink">{lockMessage}</p>
+            <PacketCheckoutButton caseId={caseId} />
+          </div>
+        ) : (
+          <Button onClick={runScan} disabled={busy} variant="copper">
+            {busy ? "Scanning… this can take a minute" : "Run scan"}
+          </Button>
+        )}
         {message ? <p className="text-sm text-ink-muted">{message}</p> : null}
       </CardContent>
     </Card>

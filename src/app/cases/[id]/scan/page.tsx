@@ -4,10 +4,12 @@ import { CaseNav } from "@/components/case-nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScanPanel } from "./scan-panel";
 import { safeJsonParse } from "@/lib/utils";
+import { packetAccessForCase } from "@/lib/access";
 
 export default async function ScanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, record } = await requireCase(id);
+  const access = await packetAccessForCase(record.id, session.user.organizationId);
   const latest = record.scans[0] ?? null;
   const pages = safeJsonParse<string[]>(latest?.pagesJson, []);
   const extra = safeJsonParse<string[]>(record.demandLetter?.listedUrls, []);
@@ -22,6 +24,8 @@ export default async function ScanPage({ params }: { params: Promise<{ id: strin
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <ScanPanel
           caseId={record.id}
+          locked={!access.allowed}
+          lockMessage={access.message}
           latest={
             latest
               ? {

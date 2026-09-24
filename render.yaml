@@ -46,3 +46,26 @@ services:
       # its own URL in a Blueprint without a circular dependency.
       # After you attach a custom domain, set AUTH_URL and APP_URL to that https URL
       # in the Render dashboard (Environment). See DEPLOY.md.
+
+  # Monthly rescan of sites with an active monitoring subscription.
+  # Same image as the website so Chromium is available. Billed only while the job runs.
+  - type: cron
+    name: curepacket-monitor
+    runtime: docker
+    plan: standard
+    region: oregon
+    branch: main
+    schedule: "0 14 1 * *"
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node scripts/monitor-cron.mjs
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: curepacket-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: PLAYWRIGHT_NO_SANDBOX
+        value: "1"
+      - key: SEED_DEMO
+        value: "false"

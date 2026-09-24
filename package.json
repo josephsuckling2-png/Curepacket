@@ -16,6 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
+    "monitor:run": "node scripts/monitor-cron.mjs",
     "playwright:install": "playwright install chromium"
   },
   "prisma": {
